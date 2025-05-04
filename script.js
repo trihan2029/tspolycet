@@ -12,7 +12,7 @@ let correctAnswers = Array(totalQuestions).fill(null); // Loaded later from file
 
 let currentQuestion = 0;
 let answers = Array(totalQuestions).fill(null);
-
+let guessed = Array(totalQuestions).fill(false);
 let remainingTime = totalTime;
 let timerInterval;
 let perQuestionTimers = Array(totalQuestions).fill(0);
@@ -35,12 +35,15 @@ function updateTimer() {
   const minutes = Math.floor(remainingTime / 60);
   const seconds = remainingTime % 60;
   document.getElementById('timer').textContent = `⏰ Time Left: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  document.getElementById('timer').style.fontWeight = 'bold';
+  document.getElementById('timer').style.color = 'red';
 }
 
 // Load Question
 function loadQuestion(index) {
   saveTimeSpent();
 
+  currentQuestion = index;
   const q = questions[index];
   document.getElementById('questionImage').src = q.img;
 
@@ -57,6 +60,15 @@ function loadQuestion(index) {
     }
     optionsDiv.appendChild(button);
   });
+
+  // Guessed checkbox
+  const guessBox = document.getElementById('guessCheckbox');
+  if (guessBox) {
+    guessBox.checked = guessed[index];
+    guessBox.onchange = () => {
+      guessed[index] = guessBox.checked;
+    };
+  }
 
   updateUnanswered();
   questionStartTime = Date.now();
@@ -109,6 +121,10 @@ function updateUnanswered() {
       span.style.color = "red"; // Not Answered
     }
 
+    if (guessed[idx]) {
+      span.style.border = '2px dashed yellow';
+    }
+
     span.onclick = () => {
       currentQuestion = idx;
       loadQuestion(currentQuestion);
@@ -125,6 +141,8 @@ function submitTest() {
 
   let correct = 0;
   let wrong = 0;
+  const guessedQuestions = [];
+
   answers.forEach((ans, idx) => {
     if (ans !== null) {
       if (ans === correctAnswers[idx]) {
@@ -133,28 +151,31 @@ function submitTest() {
         wrong++;
       }
     }
+    if (guessed[idx]) guessedQuestions.push(idx + 1);
   });
 
   const totalAttempted = correct + wrong;
   const percentage = ((correct / totalQuestions) * 100).toFixed(2);
 
-  alert(`✅ Test Completed!\n
-Total Questions: ${totalQuestions}\n
-Attempted: ${totalAttempted}\n
-Correct: ${correct}\n
-Wrong: ${wrong}\n
-Percentage: ${percentage}%`);
+  alert(`✅ Test Completed!\n\nTotal Questions: ${totalQuestions}\nAttempted: ${totalAttempted}\nCorrect: ${correct}\nWrong: ${wrong}\nGuessed: ${guessedQuestions.length}\nPercentage: ${percentage}%`);
 
   generateReport();
 }
 
-// Generate Detailed Report
+// Generate Detailed Report (Only guessed or incorrect)
 function generateReport() {
-  let report = "Question No | Your Answer | Correct Answer | Time Spent (sec)\n";
-  report += "-------------------------------------------------------------\n";
+  let report = "Q.No | Your Answer | Correct Answer | Time Spent | Guessed\n";
+  report += "--------------------------------------------------------\n";
 
   for (let i = 0; i < totalQuestions; i++) {
-    report += `Q${i+1}: ${answers[i] ?? 'Not Answered'} | ${correctAnswers[i]} | ${perQuestionTimers[i]} sec\n`;
+    const userAns = answers[i];
+    const correctAns = correctAnswers[i];
+    const isIncorrect = userAns !== correctAns;
+    const isGuessed = guessed[i];
+
+    if (isIncorrect || isGuessed) {
+      report += `Q${i+1}: ${userAns ?? 'Not Answered'} | ${correctAns} | ${perQuestionTimers[i]} sec | ${isGuessed ? 'Yes' : 'No'}\n`;
+    }
   }
 
   downloadReport(report);
@@ -181,7 +202,7 @@ function loadCorrectAnswers(fileUrl) {
 
 // Initialize
 window.onload = () => {
-  loadCorrectAnswers('answers.txt'); // Load answers from answers.txt
+  loadCorrectAnswers('answers.txt');
   loadQuestion(currentQuestion);
   startTimer();
 };
